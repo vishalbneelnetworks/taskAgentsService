@@ -9,4 +9,8 @@ export const env = {
   DB_HOST: process.env.DB_HOST || "localhost",
   DB_NAME: process.env.DB_NAME || "auth_service",
   AUTH_SERVICE_URL: process.env.AUTH_SERVICE_URL || "",
+  RABBITMQ_URL: process.env.RABBITMQ_URL || "amqp://localhost",
+  GRPC_COMPANY_SERVICE_HOST:
+    process.env.GRPC_COMPANY_SERVICE_HOST || "localhost",
+  GRPC_COMPANY_SERVICE_PORT: process.env.GRPC_COMPANY_SERVICE_PORT || "50051",
 };

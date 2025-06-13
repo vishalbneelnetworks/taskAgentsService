@@ -17,14 +17,3 @@ export const sequelize = new Sequelize(
     },
   }
 );
-
-export const connectDB = async () => {
-  try {
-    await sequelize.sync({ force: false });
-    console.log("✔️ Tables synchronized successfully!");
-    await sequelize.authenticate();
-  } catch (error) {
-    console.log("❌ MySQL db connection failed: ", error);
-    process.exit(1);
-  }
-};

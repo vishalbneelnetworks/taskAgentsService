@@ -2,33 +2,51 @@ import Joi from "joi";
 
 export const registrationFormSchema = (data) => {
   const schema = Joi.object({
-    customerId: Joi.string()
-      .guid({ version: ["uuidv4"] })
-      .required()
-      .messages({
-        "any.required": "Customer ID is required",
-        "string.guid": "Customer ID must be a valid UUID",
-      }),
-
-    projectTitle: Joi.string().min(3).max(100).required().messages({
-      "any.required": "Project title is required",
+    projectTitle: Joi.string().min(3).max(100).allow("", null).messages({
       "string.min": "Project title must be at least 3 characters long",
       "string.max": "Project title must be at most 100 characters long",
     }),
 
-    projectDescription: Joi.string().min(10).required().messages({
-      "any.required": "Project description is required",
+    projectDescription: Joi.string().min(10).messages({
       "string.min": "Project description must be at least 10 characters long",
     }),
 
-    techStack: Joi.array()
-      .items(Joi.string().trim().min(1))
-      .min(1)
+    customerType: Joi.string().required().valid("fresh", "advance").messages({
+      "any.only": "Invalid customer type",
+    }),
+
+    domain: Joi.string()
+      .valid(
+        "website",
+        "ecommerce",
+        "mobile_app",
+        "saas",
+        "landing_page",
+        "crm",
+        "booking_platform",
+        "edtech",
+        "fintech"
+      )
       .required()
       .messages({
-        "any.required": "Tech stack is required",
-        "array.min": "At least one technology must be specified",
+        "any.required": "Domain is required",
+        "any.only": "Invalid domain selected",
       }),
+
+    goal: Joi.string().min(5).max(500).required().messages({
+      "any.required": "Project goal is required",
+      "string.min": "Goal must be at least 5 characters",
+      "string.max": "Goal must be under 500 characters",
+    }),
+
+    references: Joi.array().items(Joi.string().uri()).max(5).messages({
+      "string.uri": "Each reference must be a valid URL",
+      "array.max": "You can add up to 5 references only",
+    }),
+
+    tags: Joi.array().items(Joi.string().trim().min(1)).default([]).messages({
+      "array.base": "Tags must be an array of strings",
+    }),
 
     estimatedBudget: Joi.number().positive().precision(2).allow(null).messages({
       "number.positive": "Estimated budget must be a positive number",

@@ -1,8 +1,8 @@
 import { DataTypes } from "sequelize";
 import { sequelize } from "../db/connect.js";
 
-const RegistrationForm = sequelize.define(
-  "RegistrationForm",
+const ProjectSubmission = sequelize.define(
+  "ProjectSubmission",
   {
     id: {
       type: DataTypes.UUID,
@@ -13,17 +13,21 @@ const RegistrationForm = sequelize.define(
       type: DataTypes.UUID,
       allowNull: false,
     },
+    customerType: {
+      type: DataTypes.ENUM("fresh", "advance"),
+      allowNull: false,
+    },
     projectTitle: {
       type: DataTypes.STRING,
-      allowNull: false,
+      allowNull: true,
     },
     projectDescription: {
       type: DataTypes.TEXT,
       allowNull: false,
     },
-    techStack: {
-      type: DataTypes.ARRAY(DataTypes.STRING),
-      allowNull: false,
+    tags: {
+      type: DataTypes.JSON,
+      allowNull: true,
       defaultValue: [],
     },
     estimatedBudget: {
@@ -42,6 +46,32 @@ const RegistrationForm = sequelize.define(
       type: DataTypes.TEXT,
       allowNull: true,
     },
+    goal: {
+      type: DataTypes.TEXT,
+      allowNull: true,
+    },
+    domain: {
+      type: DataTypes.ENUM(
+        "website",
+        "ecommerce",
+        "mobile_app",
+        "saas",
+        "landing_page",
+        "crm",
+        "booking_platform",
+        "edtech",
+        "fintech"
+      ),
+      allowNull: false,
+    },
+    docs: {
+      type: DataTypes.STRING,
+      allowNull: true,
+    },
+    references: {
+      type: DataTypes.JSON,
+      allowNull: true,
+    },
     status: {
       type: DataTypes.ENUM(
         "draft",
@@ -50,13 +80,32 @@ const RegistrationForm = sequelize.define(
         "approved",
         "rejected"
       ),
-      defaultValue: "submitted",
+      defaultValue: "draft",
+    },
+    updatedBy: {
+      type: DataTypes.STRING,
+      allowNull: true,
+    },
+    acceptedBy: {
+      type: DataTypes.STRING,
+      allowNull: true,
     },
   },
   {
-    tableName: "registration_forms",
+    tableName: "ProjectSubmission",
     timestamps: true,
+    indexes: [
+      {
+        fields: ["customerId"],
+      },
+      {
+        fields: ["status"],
+      },
+      {
+        fields: ["updatedBy"],
+      },
+    ],
   }
 );
 
-export default RegistrationForm;
+export default ProjectSubmission;

@@ -1,4 +1,5 @@
 import { ApiError } from "./ApiError.js";
+import { safeLogger } from "../config/logger.js";
 
 function errorHandler(err, req, res, next) {
   if (err instanceof ApiError) {
@@ -15,7 +16,17 @@ function errorHandler(err, req, res, next) {
     });
   }
 
-  console.error("Internal Server Error:", err);
+  safeLogger.error("Global Error", {
+    message: err.message,
+    statusCode: err.statusCode,
+    details: err.details,
+    stack: err.stack,
+    url: req.originalUrl,
+    method: req.method,
+    correlationId: req.correlationId || "unknown",
+    user: req.user ? { id: req.user.id, email: req.user.email } : undefined,
+  });
+
   return res.status(500).json({
     success: false,
     message: err.message,
