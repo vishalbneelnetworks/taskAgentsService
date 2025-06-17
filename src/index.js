@@ -4,6 +4,7 @@ import { sequelize } from "./db/connect.js";
 import { safeLogger } from "./config/logger.js";
 import { initializeRabbitMQ } from "./events/index.js";
 import { initializeGrpcServices } from "./grpc/index.js";
+import { stopMonitoring } from "./grpc/client/companyHealth.js";
 
 async function startServer() {
   try {
@@ -26,6 +27,7 @@ async function startServer() {
     const gracefulShutdown = async () => {
       safeLogger.info("🔻 Graceful shutdown initiated");
       await sequelize.close();
+      stopMonitoring();
       server.close(() => {
         safeLogger.info("🧹 Express server closed");
         process.exit(0);

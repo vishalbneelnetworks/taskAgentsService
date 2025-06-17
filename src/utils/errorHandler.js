@@ -16,6 +16,17 @@ function errorHandler(err, req, res, next) {
     });
   }
 
+  if (
+    typeof err.message === "string" &&
+    typeof err.code === "number" &&
+    /^\d+\s[A-Z_]+: /.test(err.message)
+  ) {
+    const parts = err.message.split(": ");
+    if (parts.length > 1) {
+      err.message = `[gRPC] ${parts.slice(1).join(": ")}`;
+    }
+  }
+
   safeLogger.error("Global Error", {
     message: err.message,
     statusCode: err.statusCode,
