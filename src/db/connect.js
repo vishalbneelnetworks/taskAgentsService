@@ -17,3 +17,5 @@ export const sequelize = new Sequelize(
     },
   }
 );
+
+export const connectDb = async () => {};
