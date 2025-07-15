@@ -1,6 +1,6 @@
 import app from "./app.js";
 import { env } from "./config/env.js";
-import { sequelize } from "./db/connect.js";
+import { connectDb } from "./db/connect.js";
 import { safeLogger } from "./config/logger.js";
 import { initializeRabbitMQ } from "./events/index.js";
 import { initializeGrpcServices } from "./grpc/index.js";
@@ -8,9 +8,8 @@ import { stopMonitoring } from "./grpc/client/companyHealth.js";
 
 async function startServer() {
   try {
-    await sequelize.authenticate();
-    await sequelize.sync({ force: false });
-    safeLogger.info("✔️ Database connected and tables synchronized");
+    await connectDb();
+    safeLogger.info("✔️ Database connected");
 
     await initializeGrpcServices();
 
@@ -26,7 +25,7 @@ async function startServer() {
 
     const gracefulShutdown = async () => {
       safeLogger.info("🔻 Graceful shutdown initiated");
-      await sequelize.close();
+      await connectDb.close();
       stopMonitoring();
       server.close(() => {
         safeLogger.info("🧹 Express server closed");

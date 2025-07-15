@@ -1,27 +1,29 @@
 import { Router } from "express";
 import {
-  createForm,
-  getFormById,
-  getForms,
-  submitForm,
-  updateForm,
-  messageEmitter,
+  createFormController,
+  getFormsController,
+  getFormByIdController,
+  updateFormController,
+  deleteFormController,
+  changeFormStatusController,
+  getFormWithTemplateController,
+  getFormsByProjectTypeController,
+  submitFormController,
 } from "../controllers/form.controller.js";
 
 const router = Router();
 
-router.get("/projects", getForms); // listing all projects submission to customer or admin or salesperson
+// Public routes
+router.get("/", getFormsController);
+router.get("/:formId", getFormByIdController);
+router.get("/project-type/:projectType", getFormsByProjectTypeController);
+router.get("/:formId/with-template", getFormWithTemplateController);
 
-router.post("/project/message", messageEmitter); // emit a message to the form submission queue
-
-router.get("/project/:formId", getFormById); // get form from id, useful for opening a single form.
-
-router.post("/project/create", createForm); // submitting a single form(actully its creating form and saving them)
-
-router.post("/project/submit/:formId", submitForm); // submit a form...
-
-router.patch("/project/update/:formId", updateForm); // update a form
-
-router.post("/project/message", messageEmitter); // emit a message to the form submission queue
+// Form operations
+router.post("/", createFormController);
+router.patch("/:formId", updateFormController); // Only for draft forms
+router.delete("/:formId", deleteFormController); // Only for draft forms
+router.patch("/:formId/status", changeFormStatusController); // Change status
+router.patch("/:formId/submit", submitFormController);
 
 export default router;

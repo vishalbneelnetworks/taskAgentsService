@@ -1,76 +1,236 @@
 import Joi from "joi";
+import { ApiError } from "../utils/ApiError.js";
+import { validateAdvancedInfo } from "../utils/buildZodSchemaFromTemplate.js";
+import mongoose from "mongoose";
+import {
+  PROJECT_TYPES,
+  FORM_STATUSES,
+  FORM_TYPES,
+  INQUIRY_TYPES,
+} from "../constant.js";
 
-export const registrationFormSchema = (data) => {
-  const schema = Joi.object({
-    projectTitle: Joi.string().min(3).max(100).allow("", null).messages({
-      "string.min": "Project title must be at least 3 characters long",
-      "string.max": "Project title must be at most 100 characters long",
+const objectIdValidation = (value, helpers) => {
+  if (!mongoose.Types.ObjectId.isValid(value)) {
+    return helpers.error("any.invalid");
+  }
+  return value;
+};
+
+// Basic form validation schemas
+const basicInfoSchema = Joi.object({
+  inquiryType: Joi.string()
+    .valid(...INQUIRY_TYPES)
+    .messages({
+      "any.only": `Inquiry type must be one of: ${INQUIRY_TYPES.join(", ")}`,
+    }),
+  preferredTime: Joi.string().allow("").messages({
+    "string.base": "Preferred time must be a string",
+  }),
+});
+
+export const createFormSchema = Joi.object({
+  formType: Joi.string()
+    .valid(...FORM_TYPES)
+    .required()
+    .messages({
+      "any.required": "Form type is required",
+      "any.only": `Form type must be one of: ${FORM_TYPES.join(", ")}`,
     }),
 
-    projectDescription: Joi.string().min(10).messages({
-      "string.min": "Project description must be at least 10 characters long",
+  projectType: Joi.string()
+    .required()
+    .trim()
+    .lowercase()
+    .min(2)
+    .max(50)
+    .pattern(/^[a-z_]+$/)
+    .messages({
+      "any.required": "Project type is required",
+      "string.pattern.base":
+        "Project type can only contain lowercase letters and underscores",
     }),
 
-    customerType: Joi.string().required().valid("fresh", "advance").messages({
-      "any.only": "Invalid customer type",
+  description: Joi.string().required().min(10).max(1000).messages({
+    "any.required": "Description is required",
+    "string.min": "Description must be at least 10 characters long",
+    "string.max": "Description must be at most 1000 characters long",
+  }),
+
+  budgetRange: Joi.string().required().messages({
+    "any.required": "Budget range is required",
+  }),
+
+  timeline: Joi.string().required().messages({
+    "any.required": "Timeline is required",
+  }),
+
+  status: Joi.string()
+    .valid(...FORM_STATUSES)
+    .default("draft")
+    .messages({
+      "any.only": `Status must be one of: ${FORM_STATUSES.join(", ")}`,
     }),
 
-    domain: Joi.string()
-      .valid(
-        "website",
-        "ecommerce",
-        "mobile_app",
-        "saas",
-        "landing_page",
-        "crm",
-        "booking_platform",
-        "edtech",
-        "fintech"
-      )
-      .required()
-      .messages({
-        "any.required": "Domain is required",
-        "any.only": "Invalid domain selected",
-      }),
+  templateId: Joi.string().required().custom(objectIdValidation).messages({
+    "any.required": "Template ID is required",
+    "any.invalid": "Invalid template ID format",
+  }),
 
-    goal: Joi.string().min(5).max(500).required().messages({
-      "any.required": "Project goal is required",
-      "string.min": "Goal must be at least 5 characters",
-      "string.max": "Goal must be under 500 characters",
+  basicInfo: basicInfoSchema.when("formType", {
+    is: "basic",
+    then: Joi.required(),
+    otherwise: Joi.forbidden(),
+  }),
+
+  advancedInfo: Joi.object().when("formType", {
+    is: "advanced",
+    then: Joi.required(),
+    otherwise: Joi.forbidden(),
+  }),
+});
+
+export const updateFormSchema = Joi.object({
+  description: Joi.string().min(10).max(1000).messages({
+    "string.min": "Description must be at least 10 characters long",
+    "string.max": "Description must be at most 1000 characters long",
+  }),
+
+  budgetRange: Joi.string().messages({
+    "any.required": "Budget range is required",
+  }),
+
+  timeline: Joi.string().messages({
+    "any.required": "Timeline is required",
+  }),
+
+  basicInfo: basicInfoSchema,
+  advancedInfo: Joi.object(),
+});
+
+export const formQuerySchema = Joi.object({
+  page: Joi.number().integer().min(1).default(1),
+  limit: Joi.number().integer().min(1).max(100).default(10),
+  formType: Joi.string().valid(...FORM_TYPES),
+  projectType: Joi.string()
+    .trim()
+    .lowercase()
+    .min(2)
+    .max(50)
+    .pattern(/^[a-z_]+$/)
+    .messages({
+      "string.pattern.base":
+        "Project type can only contain lowercase letters and underscores",
     }),
+  status: Joi.string().valid(...FORM_STATUSES),
+  sortBy: Joi.string()
+    .valid("createdAt", "updatedAt", "status")
+    .default("createdAt"),
+  sortOrder: Joi.string().valid("asc", "desc").default("desc"),
+});
 
-    references: Joi.array().items(Joi.string().uri()).max(5).messages({
-      "string.uri": "Each reference must be a valid URL",
-      "array.max": "You can add up to 5 references only",
-    }),
+// Simple template validation
+export const validateAgainstTemplate = (formData, template) => {
+  const { budgetRange, timeline } = formData;
 
-    tags: Joi.array().items(Joi.string().trim().min(1)).default([]).messages({
-      "array.base": "Tags must be an array of strings",
-    }),
+  // Validate budget range
+  if (budgetRange && !template.budgetRanges.includes(budgetRange)) {
+    throw new ApiError(
+      400,
+      `Budget range must be one of: ${template.budgetRanges.join(", ")}`
+    );
+  }
 
-    estimatedBudget: Joi.number().positive().precision(2).allow(null).messages({
-      "number.positive": "Estimated budget must be a positive number",
-    }),
+  // Validate timeline
+  if (timeline && !template.timelineOptions.includes(timeline)) {
+    throw new ApiError(
+      400,
+      `Timeline must be one of: ${template.timelineOptions.join(", ")}`
+    );
+  }
 
-    timeline: Joi.string().max(50).allow("", null).messages({
-      "string.max": "Timeline must be under 50 characters",
-    }),
+  return true;
+};
 
-    targetLaunchDate: Joi.date().greater("now").allow(null).messages({
-      "date.greater": "Launch date must be in the future",
-    }),
+// Status transition validation
+export const validateStatusTransition = (currentStatus, newStatus) => {
+  const validTransitions = {
+    draft: ["submitted"],
+    submitted: ["inprogress", "rejected"],
+    inprogress: ["approved", "rejected"],
+    approved: ["published"],
+    rejected: ["draft"],
+    published: [],
+  };
 
-    additionalNotes: Joi.string().allow("", null).max(500).messages({
-      "string.max": "Additional notes should be under 500 characters",
-    }),
+  if (!validTransitions[currentStatus]?.includes(newStatus)) {
+    throw new ApiError(
+      400,
+      `Invalid status transition from ${currentStatus} to ${newStatus}. Valid transitions: ${
+        validTransitions[currentStatus]?.join(", ") || "none"
+      }`
+    );
+  }
+};
 
-    status: Joi.string()
-      .valid("draft", "submitted", "under_review", "approved", "rejected")
-      .default("submitted")
-      .messages({
-        "any.only": "Invalid status",
-      }),
+// Check if form can be modified
+export const checkFormModifiable = (form) => {
+  if (form.status !== "draft") {
+    throw new ApiError(
+      400,
+      `Form cannot be modified. Current status: ${form.status}. Only draft forms can be modified.`
+    );
+  }
+};
+
+// Validation Functions
+export const validateCreateForm = (data) => {
+  const { error, value } = createFormSchema.validate(data, {
+    abortEarly: false,
   });
 
-  return schema.validate(data, { abortEarly: false });
+  if (error) {
+    const errorMessages = error.details.map((detail) => detail.message);
+    throw new ApiError(400, `Validation failed: ${errorMessages.join(", ")}`);
+  }
+
+  return value;
+};
+
+export const validateUpdateForm = (data) => {
+  const { error, value } = updateFormSchema.validate(data, {
+    abortEarly: false,
+  });
+
+  if (error) {
+    const errorMessages = error.details.map((detail) => detail.message);
+    throw new ApiError(400, `Validation failed: ${errorMessages.join(", ")}`);
+  }
+
+  return value;
+};
+
+export const validateFormQuery = (query) => {
+  const { error, value } = formQuerySchema.validate(query, {
+    abortEarly: false,
+  });
+
+  if (error) {
+    const errorMessages = error.details.map((detail) => detail.message);
+    throw new ApiError(400, `Validation failed: ${errorMessages.join(", ")}`);
+  }
+
+  return value;
+};
+
+// Advanced validation for template-based forms
+export const validateAdvancedForm = (advancedInfo, template) => {
+  try {
+    const validatedAdvancedInfo = validateAdvancedInfo(advancedInfo, template);
+    return validatedAdvancedInfo;
+  } catch (error) {
+    throw new ApiError(
+      400,
+      `Advanced info validation failed: ${error.message}`
+    );
+  }
 };
