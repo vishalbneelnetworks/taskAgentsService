@@ -1,47 +1,72 @@
-import app from "./app.js";
-import { env } from "./config/env.js";
-import { connectDb } from "./db/connect.js";
 import { safeLogger } from "./config/logger.js";
-import { initializeRabbitMQ } from "./events/index.js";
-import { initializeGrpcServices } from "./grpc/index.js";
-import { stopMonitoring } from "./grpc/client/companyHealth.js";
+import { env } from "./config/env.js";
+import Application from "./Application.js";
+import app from "./app.js";
 
-async function startServer() {
+// Create application instance
+const eventDrivenApp = new Application();
+
+async function startServices() {
   try {
-    await connectDb();
-    safeLogger.info("✔️ Database connected");
+    safeLogger.info("🚀 Starting Task Agent Service...");
 
-    await initializeGrpcServices();
+    // Setup graceful shutdown handlers
+    eventDrivenApp.setupShutdownHandlers();
 
-    // await initRedis();
-    // safeLogger.info("✔️ Redis connection successful");
+    // Start the Event-Driven Agent System
+    await eventDrivenApp.start();
 
-    // await initializeRabbitMQ();
-    // safeLogger.info("✔️ RabbitMQ connection initialized");
+    // Start Express API server (for testing and monitoring)
+    const PORT = env.PORT || 3001;
 
-    const server = app.listen(env.PORT, () => {
-      safeLogger.info(`⚙️ Server is running on port ${env.PORT}`);
+    // Add system routes to Express app
+    app.get("/health", async (req, res) => {
+      try {
+        const health = await eventDrivenApp.getSystemHealth();
+        res.json(health);
+      } catch (error) {
+        res.status(500).json({ error: error.message });
+      }
     });
 
-    const gracefulShutdown = async () => {
-      safeLogger.info("🔻 Graceful shutdown initiated");
-      await connectDb.close();
-      stopMonitoring();
-      server.close(() => {
-        safeLogger.info("🧹 Express server closed");
-        process.exit(0);
-      });
-    };
-
-    process.on("SIGINT", gracefulShutdown);
-    process.on("SIGTERM", gracefulShutdown);
-  } catch (err) {
-    safeLogger.error("❌ Startup failed", {
-      message: err.message,
-      stack: err.stack,
+    app.get("/stats", async (req, res) => {
+      try {
+        const stats = eventDrivenApp.getSystemStats();
+        res.json(stats);
+      } catch (error) {
+        res.status(500).json({ error: error.message });
+      }
     });
+
+    app.post("/test/form-submission", async (req, res) => {
+      try {
+        const result = await eventDrivenApp.testFormSubmission();
+
+        res.json({
+          success: true,
+          message: "Form submission test initiated",
+          ...result,
+        });
+      } catch (error) {
+        safeLogger.error("Test form submission error:", error);
+        res.status(500).json({
+          success: false,
+          error: error.message,
+        });
+      }
+    });
+
+    app.listen(PORT, () => {
+      safeLogger.info(`⚙️ Express API Server running on port ${PORT}`);
+    });
+  } catch (error) {
+    safeLogger.error("Failed to start services:", error);
     process.exit(1);
   }
 }
 
-startServer();
+// Start the services
+startServices().catch((error) => {
+  safeLogger.error("Unhandled error during startup:", error);
+  process.exit(1);
+});

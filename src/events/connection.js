@@ -180,14 +180,7 @@ class RabbitMQConnection {
     }
     if (this.channels.has(name)) {
       const channel = this.channels.get(name);
-      // Validate channel is still open
-      try {
-        await channel.checkQueue(""); // Dummy check to verify channel
-        return channel;
-      } catch (error) {
-        safeLogger.warn(`Channel '${name}' is invalid, recreating...`);
-        this.channels.delete(name);
-      }
+      return channel;
     }
 
     try {
@@ -338,7 +331,13 @@ class RabbitMQConnection {
             `Error processing message from queue '${queueName}': ${error.message}`
           );
           if (!consumeOptions.noAck) {
-            channel.nack(msg, false, false);
+            try {
+              channel.nack(msg, false, false);
+            } catch (nackError) {
+              safeLogger.warn(
+                `Failed to nack message (channel may be closed): ${nackError.message}`
+              );
+            }
           }
         }
       },

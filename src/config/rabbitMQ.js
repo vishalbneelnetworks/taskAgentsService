@@ -51,6 +51,23 @@ const rabbitMQConfig = {
         },
       ],
     },
+    // Add matching queues
+    matchingRequest: {
+      name: "matching.request.queue",
+      options: {
+        durable: true,
+        messageTtl: 86400000, // 24 hours
+      },
+      bindings: [],
+    },
+    matchingReply: {
+      name: "assign.agent.reply.queue",
+      options: {
+        durable: true,
+        messageTtl: 86400000, // 24 hours
+      },
+      bindings: [],
+    },
   },
 
   channels: {
